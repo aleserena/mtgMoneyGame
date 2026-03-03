@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/lib/socket";
 import { GameBoard } from "@/components/GameBoard";
-import type { GameState } from "@/lib/types";
+import type { GameState, PlayerIndex } from "@/lib/types";
 
 const INITIAL_STATE: GameState = {
   target: 0,
@@ -21,7 +21,7 @@ export default function GamePage() {
   const roomId = params.roomId as string;
   const { socket, connected } = useSocket();
   const [gameState, setGameState] = useState<GameState>(INITIAL_STATE);
-  const [playerIndex, setPlayerIndex] = useState<number | null>(null);
+  const [playerIndex, setPlayerIndex] = useState<PlayerIndex | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loseTurnMessage, setLoseTurnMessage] = useState<string | null>(null);
 
@@ -33,7 +33,8 @@ export default function GamePage() {
         setError(res.error);
         return;
       }
-      setPlayerIndex(res.playerIndex ?? 0);
+      const idx = (res.playerIndex ?? 0) as PlayerIndex;
+      setPlayerIndex(idx);
       if (res.gameState) {
         setGameState(res.gameState);
       }
@@ -119,7 +120,7 @@ export default function GamePage() {
         )}
         <GameBoard
           gameState={gameState}
-          currentPlayerIndex={playerIndex ?? 0}
+          currentPlayerIndex={(playerIndex ?? 0) as PlayerIndex}
           onPlayCard={playCard}
           isMultiplayer={true}
         />
