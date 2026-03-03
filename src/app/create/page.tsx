@@ -3,15 +3,16 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSocket } from "@/lib/socket";
+import { DEFAULT_TARGET, TARGET_MIN, TARGET_MAX } from "@/lib/config";
 
 function randomTarget() {
-  return Math.floor(350 + Math.random() * 651);
+  return Math.floor(TARGET_MIN + Math.random() * (TARGET_MAX - TARGET_MIN + 1));
 }
 
 export default function CreateGamePage() {
   const { socket, connected } = useSocket();
   const router = useRouter();
-  const [target, setTarget] = useState(500);
+  const [target, setTarget] = useState(DEFAULT_TARGET);
   const [useRandom, setUseRandom] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -19,7 +20,7 @@ export default function CreateGamePage() {
   const createGame = useCallback(() => {
     if (!socket || !connected) return;
     setCreating(true);
-    const t = useRandom ? randomTarget() : Math.min(1000, Math.max(350, target));
+    const t = useRandom ? randomTarget() : Math.min(TARGET_MAX, Math.max(TARGET_MIN, target));
     socket.emit("create-game", { target: t }, (res: { roomId?: string; error?: string }) => {
       setCreating(false);
       if (res.roomId) {

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/lib/socket";
-import { GameBoard, GameState } from "@/components/GameBoard";
+import { GameBoard } from "@/components/GameBoard";
+import type { GameState } from "@/lib/types";
 
 const INITIAL_STATE: GameState = {
   target: 0,
@@ -47,9 +48,16 @@ export default function GamePage() {
       setLoseTurnMessage(data.reason || "You lost your turn");
     });
 
-    socket.on("opponent-disconnected", () => {
-      setError("Opponent disconnected. You win!");
-    });
+    socket.on(
+      "opponent-disconnected",
+      (data?: { forfeited?: boolean; rejoinWindowMs?: number }) => {
+        if (data?.forfeited) {
+          setError("Opponent disconnected and forfeited the game. You win!");
+        } else {
+          setError("Opponent disconnected. Waiting to see if they reconnect...");
+        }
+      }
+    );
 
     return () => {
       socket.off("game-state");
@@ -101,7 +109,11 @@ export default function GamePage() {
           Back
         </a>
         {loseTurnMessage && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-300">
+          <div
+            className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-300"
+            role="status"
+            aria-live="polite"
+          >
             {loseTurnMessage}
           </div>
         )}

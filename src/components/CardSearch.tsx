@@ -121,16 +121,25 @@ export function CardSearch({ onSelect, disabled }: CardSearchProps) {
         onFocus={() => query.length >= 2 && fetchAutocomplete(query)}
         placeholder="Search for a card..."
         disabled={disabled}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={suggestions.length > 0}
+        aria-controls="card-suggestions"
         className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
       />
 
       {suggestions.length > 0 && !selectedPrinting && (
-        <ul className="mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-slate-800 border border-slate-600 shadow-lg">
+        <ul
+          id="card-suggestions"
+          role="listbox"
+          className="mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-slate-800 border border-slate-600 shadow-lg"
+        >
           {suggestions.map((name) => (
             <li key={name}>
               <button
                 type="button"
                 onClick={() => handleSuggestionClick(name)}
+                role="option"
                 className="w-full px-4 py-2 text-left hover:bg-slate-700 text-white"
               >
                 {name}
@@ -178,6 +187,11 @@ export function CardSearch({ onSelect, disabled }: CardSearchProps) {
                     <button
                       type="button"
                       onClick={() => {
+                        if (selectedPrinting?.id === p.id) {
+                          // Deselect the currently selected printing so the user can pick another or search again.
+                          setSelectedPrinting(null);
+                          return;
+                        }
                         setSelectedPrinting(p);
                         const validFinishes = p.finishes?.length ? p.finishes : ["nonfoil"];
                         setTreatment(validFinishes.includes(treatment) ? treatment : validFinishes[0]);
@@ -223,7 +237,9 @@ export function CardSearch({ onSelect, disabled }: CardSearchProps) {
       )}
 
       {loading && (
-        <p className="mt-2 text-sm text-slate-500">Loading...</p>
+        <p className="mt-2 text-sm text-slate-500" role="status" aria-live="polite">
+          Loading...
+        </p>
       )}
     </div>
   );

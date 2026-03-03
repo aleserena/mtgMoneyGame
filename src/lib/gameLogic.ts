@@ -23,10 +23,10 @@ export function validateAndApplyCard(
     return { valid: false, reason: "Card already used" };
   }
 
-  const roundedPrice = Math.round(card.price);
-  if (roundedPrice <= 0) {
+  if (!Number.isFinite(card.price) || card.price <= 0) {
     return { valid: false, reason: "Card has no valid price" };
   }
+  const roundedPrice = Math.max(1, Math.round(card.price));
   const newRemaining = remaining - roundedPrice;
 
   if (newRemaining < 0) {

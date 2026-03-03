@@ -49,26 +49,50 @@ export async function POST(request: NextRequest) {
             notCounted: true,
           },
         ];
+
+        const newState = {
+          ...gameState,
+          currentTurn: 1,
+          usedCardIds: Array.from(usedIds),
+          remaining: gameState.remaining,
+          playerCards,
+        };
+        console.log("[Practice API] User lost turn (overspend)", {
+          reason: result.reason,
+          newState: { currentTurn: newState.currentTurn, status: newState.status },
+        });
+        return NextResponse.json({
+          error: result.reason,
+          gameState: newState,
+        });
       }
 
-      const newState = {
-        ...gameState,
-        currentTurn: 1,
-        usedCardIds: Array.from(usedIds),
-        remaining: gameState.remaining,
-        playerCards,
-      };
-      console.log("[Practice API] User lost turn (invalid play)", {
+      // For other invalid reasons (e.g. no valid price, already used),
+      // do not change turn or game state – just surface the error.
+      console.log("[Practice API] Invalid play without turn loss", {
         reason: result.reason,
-        newState: { currentTurn: newState.currentTurn, status: newState.status },
+        currentTurn: gameState.currentTurn,
+        status: gameState.status,
       });
       return NextResponse.json({
         error: result.reason,
-        gameState: newState,
+        gameState,
       });
     }
 
     usedIds.add(cardId);
+
+    // Append the successfully played card to the user's list.
+    playerCards["0"] = [
+      ...(playerCards["0"] || []),
+      {
+        id: cardId,
+        name: cardInfo.name,
+        set: cardInfo.set_name,
+        treatment,
+        price: result.roundedPrice!,
+      },
+    ];
 
     const prevRemaining = gameState.remaining;
     const remaining: { "0": number; "1": number } =

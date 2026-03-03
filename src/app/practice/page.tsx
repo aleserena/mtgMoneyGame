@@ -2,26 +2,28 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { GameBoard } from "@/components/GameBoard";
+import { DEFAULT_TARGET, TARGET_MIN, TARGET_MAX } from "@/lib/config";
+import type { GameState } from "@/lib/types";
 
 function randomTarget() {
-  return Math.floor(350 + Math.random() * 651);
+  return Math.floor(TARGET_MIN + Math.random() * (TARGET_MAX - TARGET_MIN + 1));
 }
 
-const createInitialState = (target: number) => ({
+const createInitialState = (target: number): GameState => ({
   target,
   remaining: { "0": target, "1": target },
   playerCards: {
-    "0": [] as Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>,
-    "1": [] as Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>,
+    "0": [],
+    "1": [],
   },
   currentTurn: 0,
   status: "playing",
-  winner: null as number | null,
-  usedCardIds: [] as string[],
+  winner: null,
+  usedCardIds: [],
 });
 
 export default function PracticePage() {
-  const [target, setTarget] = useState(500);
+  const [target, setTarget] = useState(DEFAULT_TARGET);
   const [useRandom, setUseRandom] = useState(true);
   const [gameState, setGameState] = useState(createInitialState(500));
   const [aiDifficulty, setAiDifficulty] = useState<"simple" | "smart">("simple");
@@ -174,12 +176,20 @@ export default function PracticePage() {
           Back
         </a>
         {loseTurnMessage && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-300">
+          <div
+            className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-300"
+            role="status"
+            aria-live="polite"
+          >
             {loseTurnMessage}
           </div>
         )}
         {aiThinking && (
-          <div className="mb-4 p-3 rounded-lg bg-slate-700 text-slate-300">
+          <div
+            className="mb-4 p-3 rounded-lg bg-slate-700 text-slate-300"
+            role="status"
+            aria-live="polite"
+          >
             AI is thinking...
           </div>
         )}

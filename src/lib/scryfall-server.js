@@ -10,6 +10,9 @@ const TREATMENT_MAP = {
 let lastRequestTime = 0;
 const MIN_INTERVAL_MS = 100;
 
+const cardCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 async function rateLimitedFetch(url) {
   const now = Date.now();
   const elapsed = now - lastRequestTime;
@@ -20,10 +23,33 @@ async function rateLimitedFetch(url) {
   return fetch(url);
 }
 
+function getFromCache(cache, key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCache(cache, key, value) {
+  cache.set(key, { value, timestamp: Date.now() });
+}
+
 async function getCardById(id) {
-  const res = await rateLimitedFetch(`${SCRYFALL_BASE}/cards/${id}`);
-  if (!res.ok) return null;
-  return res.json();
+  const cached = getFromCache(cardCache, id);
+  if (cached) return cached;
+
+  try {
+    const res = await rateLimitedFetch(`${SCRYFALL_BASE}/cards/${id}`);
+    if (!res.ok) return null;
+    const card = await res.json();
+    setCache(cardCache, id, card);
+    return card;
+  } catch {
+    return null;
+  }
 }
 
 async function getCardPrice(cardId, treatment) {

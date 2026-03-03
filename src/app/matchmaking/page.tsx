@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSocket } from "@/lib/socket";
+import { DEFAULT_TARGET, TARGET_MIN, TARGET_MAX } from "@/lib/config";
 
 export default function MatchmakingPage() {
   const { socket, connected } = useSocket();
   const router = useRouter();
-  const [target, setTarget] = useState(500);
+  const [target, setTarget] = useState(DEFAULT_TARGET);
   const [useRandom, setUseRandom] = useState(true);
   const [searching, setSearching] = useState(false);
 
@@ -28,7 +29,9 @@ export default function MatchmakingPage() {
   const findOpponent = useCallback(() => {
     if (!socket || !connected) return;
     setSearching(true);
-    const config = useRandom ? { random: true } : { target: Math.min(1000, Math.max(350, target)) };
+    const config = useRandom
+      ? { random: true }
+      : { target: Math.min(TARGET_MAX, Math.max(TARGET_MIN, target)) };
     socket.emit("join-queue", config, (res: { matched?: boolean; roomId?: string; playerIndex?: number }) => {
       if (res.matched && res.roomId) {
         setSearching(false);

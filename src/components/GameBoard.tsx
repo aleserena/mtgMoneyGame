@@ -2,23 +2,11 @@
 
 import { CardSearch } from "./CardSearch";
 import { PlayerCardList } from "./PlayerCardList";
-
-export interface GameState {
-  target: number;
-  remaining: number | { "0": number; "1": number };
-  playerCards: {
-    "0": Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>;
-    "1": Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>;
-  };
-  currentTurn: number;
-  status: string;
-  winner: number | null;
-  lastPlay?: { playerIndex: number; card: { name: string; set: string; treatment: string; price: number } };
-}
+import type { GameState, PlayerIndex } from "@/lib/types";
 
 interface GameBoardProps {
   gameState: GameState;
-  currentPlayerIndex: number;
+  currentPlayerIndex: PlayerIndex;
   onPlayCard: (cardId: string, treatment: string) => void;
   isMultiplayer?: boolean;
 }
@@ -31,9 +19,25 @@ export function GameBoard({
 }: GameBoardProps) {
   const isMyTurn = gameState.currentTurn === currentPlayerIndex;
   const gameOver = gameState.status === "finished";
+  const turnMessage = gameOver
+    ? gameState.winner === currentPlayerIndex
+      ? "Game over — you win!"
+      : "Game over — you lose."
+    : isMyTurn
+    ? "Your turn — pick a card."
+    : isMultiplayer
+    ? "Waiting for opponent..."
+    : "AI is thinking...";
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <div
+        className="rounded-lg bg-slate-900/40 border border-slate-700 p-3 text-center"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-sm text-slate-300">{turnMessage}</p>
+      </div>
       <p className="text-center text-slate-400 text-sm">Target: ${gameState.target}</p>
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-4 text-center">
@@ -68,9 +72,6 @@ export function GameBoard({
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-slate-400">
-            {isMyTurn ? "Your turn — pick a card" : isMultiplayer ? "Waiting for opponent..." : "AI is thinking..."}
-          </p>
           {isMyTurn && (
             <CardSearch onSelect={onPlayCard} disabled={gameOver} />
           )}

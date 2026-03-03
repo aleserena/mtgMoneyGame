@@ -1,11 +1,15 @@
 const queue = new Map();
+const logger = require("./logger");
 
 function addToQueue(socketId, config) {
   queue.set(socketId, { config, joinedAt: Date.now() });
+  logger.info("queue_joined", { socketId, config });
 }
 
 function removeFromQueue(socketId) {
-  queue.delete(socketId);
+  if (queue.delete(socketId)) {
+    logger.info("queue_left", { socketId });
+  }
 }
 
 function randomTarget() {
@@ -27,6 +31,11 @@ function findMatch(socketId) {
     if ((isRandom && otherIsRandom) || Math.abs(target - otherTarget) <= 100) {
       queue.delete(socketId);
       queue.delete(otherId);
+      logger.info("queue_matched", {
+        socketId,
+        otherId,
+        target: matchTarget,
+      });
       return { otherId, target: matchTarget };
     }
   }
@@ -48,6 +57,11 @@ function setupMatchmakingHandlers(io) {
         }
         socket.join(roomId);
         socket.emit("matched", { roomId, playerIndex: 1 });
+        logger.info("queue_match_room_created", {
+          roomId,
+          socketId: socket.id,
+          otherSocketId: match.otherId,
+        });
         callback({ matched: true, roomId, playerIndex: 1 });
       } else {
         callback({ matched: false });

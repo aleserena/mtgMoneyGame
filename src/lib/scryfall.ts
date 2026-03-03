@@ -1,4 +1,8 @@
-const SCRYFALL_BASE = "https://api.scryfall.com";
+import {
+  SCRYFALL_BASE_URL,
+  SCRYFALL_MIN_INTERVAL_MS,
+  SCRYFALL_CACHE_TTL_MS,
+} from "./config";
 
 const TREATMENT_MAP: Record<string, keyof ScryfallPrices> = {
   nonfoil: "usd",
@@ -14,7 +18,7 @@ interface ScryfallPrices {
   usd_glossy?: string | null;
 }
 
-interface ScryfallCard {
+export interface ScryfallCard {
   id: string;
   name: string;
   set_name: string;
@@ -27,27 +31,59 @@ interface ScryfallCard {
   prices: ScryfallPrices;
 }
 
+type CacheEntry<T> = {
+  value: T;
+  timestamp: number;
+};
+
+const autocompleteCache = new Map<string, CacheEntry<string[]>>();
+const searchCache = new Map<string, CacheEntry<PrintingInfo[]>>();
+const cardCache = new Map<string, CacheEntry<ScryfallCard>>();
+
 let lastRequestTime = 0;
-const MIN_INTERVAL_MS = 100;
 
 async function rateLimitedFetch(url: string): Promise<Response> {
   const now = Date.now();
   const elapsed = now - lastRequestTime;
-  if (elapsed < MIN_INTERVAL_MS) {
-    await new Promise((r) => setTimeout(r, MIN_INTERVAL_MS - elapsed));
+  if (elapsed < SCRYFALL_MIN_INTERVAL_MS) {
+    await new Promise((r) => setTimeout(r, SCRYFALL_MIN_INTERVAL_MS - elapsed));
   }
   lastRequestTime = Date.now();
   return fetch(url);
 }
 
+function getFromCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > SCRYFALL_CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T) {
+  cache.set(key, { value, timestamp: Date.now() });
+}
+
 export async function autocomplete(query: string): Promise<string[]> {
   if (!query || query.length < 2) return [];
-  const res = await rateLimitedFetch(
-    `${SCRYFALL_BASE}/cards/autocomplete?q=${encodeURIComponent(query)}`
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.data || [];
+  const cacheKey = query.toLowerCase();
+  const cached = getFromCache(autocompleteCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const res = await rateLimitedFetch(
+      `${SCRYFALL_BASE_URL}/cards/autocomplete?q=${encodeURIComponent(query)}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const names: string[] = data.data || [];
+    setCache(autocompleteCache, cacheKey, names);
+    return names;
+  } catch {
+    return [];
+  }
 }
 
 export interface PrintingInfo {
@@ -64,50 +100,72 @@ export interface PrintingInfo {
 
 export async function searchCards(query: string): Promise<PrintingInfo[]> {
   if (!query || query.length < 2) return [];
-  const res = await rateLimitedFetch(
-    `${SCRYFALL_BASE}/cards/search?q=${encodeURIComponent(query)}&unique=prints`
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  if (data.object === "error") return [];
-  const cards: ScryfallCard[] = data.data || [];
-  const FINISH_TO_PRICE: Record<string, keyof ScryfallPrices> = {
-    nonfoil: "usd",
-    foil: "usd_foil",
-    etched: "usd_etched",
-    glossy: "usd_glossy",
-  };
-  return cards
-    .map((c) => {
-      if (!c.prices) return null;
-      const rawFinishes = c.finishes || ["nonfoil"];
-      const validFinishes = rawFinishes.filter((f) => {
-        const priceKey = FINISH_TO_PRICE[f] || "usd";
-        const priceStr = c.prices[priceKey as keyof ScryfallPrices];
-        if (!priceStr) return false;
-        const price = parseFloat(priceStr);
-        return !isNaN(price) && price > 0;
-      });
-      if (validFinishes.length === 0) return null;
-      return {
-        id: c.id,
-        name: c.name,
-        set_name: c.set_name,
-        set: c.set,
-        collector_number: c.collector_number,
-        finishes: validFinishes,
-        frame_effects: c.frame_effects,
-        promo: c.promo,
-        promo_types: c.promo_types,
-      };
-    })
-    .filter((c): c is NonNullable<typeof c> => c !== null);
+  const cacheKey = query.toLowerCase();
+  const cached = getFromCache(searchCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const res = await rateLimitedFetch(
+      `${SCRYFALL_BASE_URL}/cards/search?q=${encodeURIComponent(query)}&unique=prints`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.object === "error") return [];
+    const cards: ScryfallCard[] = data.data || [];
+    const FINISH_TO_PRICE: Record<string, keyof ScryfallPrices> = {
+      nonfoil: "usd",
+      foil: "usd_foil",
+      etched: "usd_etched",
+      glossy: "usd_glossy",
+    };
+    const printings = cards
+      .map((c) => {
+        if (!c.prices) return null;
+        const rawFinishes = c.finishes || ["nonfoil"];
+        const validFinishes = rawFinishes.filter((f) => {
+          const priceKey = FINISH_TO_PRICE[f] || "usd";
+          const priceStr = c.prices[priceKey as keyof ScryfallPrices];
+          if (!priceStr) return false;
+          const price = parseFloat(priceStr);
+          // Require a positive price; rounding logic will treat
+          // prices below $1 as costing $1 in gameplay.
+          return !isNaN(price) && price > 0;
+        });
+        if (validFinishes.length === 0) return null;
+        return {
+          id: c.id,
+          name: c.name,
+          set_name: c.set_name,
+          set: c.set,
+          collector_number: c.collector_number,
+          finishes: validFinishes,
+          frame_effects: c.frame_effects,
+          promo: c.promo,
+          promo_types: c.promo_types,
+        };
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+
+    setCache(searchCache, cacheKey, printings);
+    return printings;
+  } catch {
+    return [];
+  }
 }
 
 export async function getCardById(id: string): Promise<ScryfallCard | null> {
-  const res = await rateLimitedFetch(`${SCRYFALL_BASE}/cards/${id}`);
-  if (!res.ok) return null;
-  return res.json();
+  const cached = getFromCache(cardCache, id);
+  if (cached) return cached;
+
+  try {
+    const res = await rateLimitedFetch(`${SCRYFALL_BASE_URL}/cards/${id}`);
+    if (!res.ok) return null;
+    const card: ScryfallCard = await res.json();
+    setCache(cardCache, id, card);
+    return card;
+  } catch {
+    return null;
+  }
 }
 
 export async function getCardPrice(
