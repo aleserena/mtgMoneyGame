@@ -32,14 +32,33 @@ export async function POST(request: NextRequest) {
       usedIds
     );
 
+    const playerCards = { ...gameState.playerCards };
+
     if (!result.valid) {
+      // If the only problem is overspending, keep the card in the list but mark it as not counted
+      if (result.overspend) {
+        const roundedPrice = Math.round(cardInfo.price);
+        playerCards["0"] = [
+          ...(playerCards["0"] || []),
+          {
+            id: cardId,
+            name: cardInfo.name,
+            set: cardInfo.set_name,
+            treatment,
+            price: roundedPrice,
+            notCounted: true,
+          },
+        ];
+      }
+
       const newState = {
         ...gameState,
         currentTurn: 1,
         usedCardIds: Array.from(usedIds),
         remaining: gameState.remaining,
+        playerCards,
       };
-      console.log("[Practice API] User lost turn (overspend)", {
+      console.log("[Practice API] User lost turn (invalid play)", {
         reason: result.reason,
         newState: { currentTurn: newState.currentTurn, status: newState.status },
       });
@@ -50,17 +69,6 @@ export async function POST(request: NextRequest) {
     }
 
     usedIds.add(cardId);
-    const playerCards = { ...gameState.playerCards };
-    playerCards["0"] = [
-      ...(playerCards["0"] || []),
-      {
-        id: cardId,
-        name: cardInfo.name,
-        set: cardInfo.set_name,
-        treatment,
-        price: result.roundedPrice!,
-      },
-    ];
 
     const prevRemaining = gameState.remaining;
     const remaining: { "0": number; "1": number } =

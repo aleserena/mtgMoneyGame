@@ -8,6 +8,7 @@ interface PlayedCard {
   set: string;
   treatment: string;
   price: number;
+  notCounted?: boolean;
 }
 
 interface PlayerCardListProps {
@@ -40,7 +41,23 @@ export function PlayerCardList({ cards, label }: PlayerCardListProps) {
                     — {TREATMENT_LABELS[card.treatment] || card.treatment}
                   </span>
                 </span>
-                <span className="font-mono text-amber-400">${card.price}</span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className={`font-mono ${
+                      card.notCounted ? "text-slate-500 line-through" : "text-amber-400"
+                    }`}
+                  >
+                    ${card.price}
+                  </span>
+                  {card.notCounted && (
+                    <span
+                      className="text-xs font-semibold text-red-400"
+                      title="This card exceeded the allowed amount and was not counted"
+                    >
+                      ×
+                    </span>
+                  )}
+                </span>
               </li>
             </CardImagePreview>
           ))}

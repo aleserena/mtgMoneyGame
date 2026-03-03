@@ -6,7 +6,10 @@ import { PlayerCardList } from "./PlayerCardList";
 export interface GameState {
   target: number;
   remaining: number | { "0": number; "1": number };
-  playerCards: { "0": Array<{ id: string; name: string; set: string; treatment: string; price: number }>; "1": Array<{ id: string; name: string; set: string; treatment: string; price: number }> };
+  playerCards: {
+    "0": Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>;
+    "1": Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>;
+  };
   currentTurn: number;
   status: string;
   winner: number | null;

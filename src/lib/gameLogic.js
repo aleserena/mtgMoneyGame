@@ -13,6 +13,7 @@ function validateAndApplyCard(remaining, card, usedIds) {
     return {
       valid: false,
       reason: "Card price exceeds remaining amount - you lose your turn",
+      overspend: true,
     };
   }
 

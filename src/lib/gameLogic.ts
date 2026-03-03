@@ -11,6 +11,7 @@ export interface ValidationResult {
   winner?: boolean;
   cardName?: string;
   setName?: string;
+  overspend?: boolean;
 }
 
 export function validateAndApplyCard(
@@ -29,7 +30,11 @@ export function validateAndApplyCard(
   const newRemaining = remaining - roundedPrice;
 
   if (newRemaining < 0) {
-    return { valid: false, reason: "Card price exceeds remaining amount - you lose your turn" };
+    return {
+      valid: false,
+      reason: "Card price exceeds remaining amount - you lose your turn",
+      overspend: true,
+    };
   }
 
   const winner = newRemaining === 0;

@@ -61,6 +61,23 @@ async function playCard(roomId, playerId, { cardId, treatment }) {
   );
 
   if (!result.valid) {
+    // If the only problem is overspending, keep the card in the player's list but mark it as not counted
+    if (result.overspend) {
+      const roundedPrice = Math.round(cardInfo.price);
+      room.playerCards[player.index].push({
+        id: cardId,
+        name: cardInfo.name,
+        set: cardInfo.set_name,
+        treatment,
+        price: roundedPrice,
+        notCounted: true,
+      });
+      room.lastPlay = {
+        playerIndex: player.index,
+        card: room.playerCards[player.index].at(-1),
+      };
+    }
+
     room.currentTurn = room.currentTurn === 0 ? 1 : 0;
     return {
       success: false,

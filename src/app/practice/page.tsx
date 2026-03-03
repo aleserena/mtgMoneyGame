@@ -10,7 +10,10 @@ function randomTarget() {
 const createInitialState = (target: number) => ({
   target,
   remaining: { "0": target, "1": target },
-  playerCards: { "0": [] as Array<{ id: string; name: string; set: string; treatment: string; price: number }>, "1": [] as Array<{ id: string; name: string; set: string; treatment: string; price: number }> },
+  playerCards: {
+    "0": [] as Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>,
+    "1": [] as Array<{ id: string; name: string; set: string; treatment: string; price: number; notCounted?: boolean }>,
+  },
   currentTurn: 0,
   status: "playing",
   winner: null as number | null,
